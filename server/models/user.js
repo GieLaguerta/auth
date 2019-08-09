@@ -1,0 +1,78 @@
+const mongoose = require("mongoose");
+const bcrypt = require("bcrypt");
+const SALT_I = 10;
+const jwt = require("jsonwebtoken");
+
+//database model || schema
+const userSchema = mongoose.Schema({
+  email: {
+    type: String,
+    required: true,
+    trim: true,
+    unique: 1
+  },
+  password: {
+    type: String,
+    required: true,
+    minlength: 6
+  },
+  token: {
+    type: String
+  }
+});
+
+//encrypt PASSWORD
+userSchema.pre("save", function(next) {
+  var user = this;
+  //ismodified function || this will run only if you update your password
+  if (user.isModified("password")) {
+    //
+    bcrypt.genSalt(SALT_I, function(err, salt) {
+      if (err) return next(err);
+      //change password to hash
+      bcrypt.hash(user.password, salt, function(err, hash) {
+        if (err) return next(err);
+        user.password = hash;
+        next();
+      });
+    });
+  } else {
+    next();
+  }
+});
+
+//compare password
+userSchema.methods.comparePassword = function(candidatePassword, cb) {
+  bcrypt.compare(candidatePassword, this.password, function(err, isMatch) {
+    if (err) throw cb(err);
+    cb(null, isMatch);
+  });
+};
+
+//adding and  stroring token
+userSchema.methods.generateToken = function(cb) {
+  var user = this;
+  var token = jwt.sign(user._id.toHexString(), "supersecret");
+  user.token = token;
+  user.save(function(err, user) {
+    if (err) return cb(err);
+    cb(null, user);
+  });
+};
+
+//
+userSchema.statics.findByToken = function(token, cb) {
+  const user = this;
+
+  jwt.verify(token, "supersecret", function(err, decode) {
+    user.findOne({ _id: decode, token: token }, function(err, user) {
+      if (err) return cb(err);
+      cb(null, user);
+    });
+  });
+};
+
+const User = mongoose.model("User", userSchema);
+
+//export User
+module.exports = { User };
