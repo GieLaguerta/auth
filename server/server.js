@@ -49,6 +49,7 @@ app.post("/api/user/login", (req, res) => {
       });
   });
 });
+//
 
 //location if the user finish to authenticate
 app.get("/user/profile", auth, (req, res) => {
